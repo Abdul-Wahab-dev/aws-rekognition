@@ -2,8 +2,12 @@ const express = require("express");
 const { Rekognition } = require("@aws-sdk/client-rekognition");
 const fs = require("fs");
 const path = require("path");
+const cors = require("cors");
 
 const app = express();
+app.use(cors());
+app.use(express.json());
+
 const rekognition = new Rekognition({
   region: "us-east-1",
 });
@@ -68,6 +72,22 @@ app.get("/compare-img", async (req, res) => {
   res.status(200).json(compareStatus);
 });
 
+app.get("/face-liveness", async (req, res) => {
+  const session = await rekognition.createFaceLivenessSession({});
+
+  res.json(session.SessionId);
+});
+
+app.get("/get-session-result", async (req, res) => {
+  //   console.log(req.params.sessionId);
+  //   const result = await rekognition.getFaceLivenessSessionResults({
+  //     SessionId: req.params.sessionId,
+  //   });
+  //   console.log(req.body.streamImage);
+  console.log(req.body);
+
+  res.json("send");
+});
 app.listen(4000, () => {
   console.log("Server is running on PORT 4000");
 });

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Live Stream Capture</title>
+    <style>
+      video {
+        width: 100%;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Live Stream Capture</h1>
+    <video id="videoElement" autoplay></video>
+    <button id="startButton">Start</button>
+    <button id="stopButton">Stop</button>
+
+    <script>
+      var videoElement = document.getElementById("videoElement");
+      var startButton = document.getElementById("startButton");
+      var stopButton = document.getElementById("stopButton");
+      var stream;
+
+      // Start the video stream
+      function startStream() {
+        navigator.mediaDevices
+          .getUserMedia({ video: true })
+          .then(function (mediaStream) {
+            stream = mediaStream;
+            videoElement.srcObject = stream;
+          })
+          .catch(function (error) {
+            console.error("Error accessing media devices: ", error);
+          });
+      }
+
+      // Stop the video stream
+      function stopStream() {
+        if (stream) {
+          stream.getTracks().forEach(function (track) {
+            track.stop();
+          });
+          videoElement.srcObject = null;
+        }
+      }
+
+      // Attach event listeners to start and stop buttons
+      startButton.addEventListener("click", startStream);
+      stopButton.addEventListener("click", stopStream);
+
+      // Function to send the video stream data to the server
+      function sendStreamDataToServer() {
+        // Create a canvas element and draw the current frame from the video stream
+        var canvas = document.createElement("canvas");
+        var context = canvas.getContext("2d");
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        context.drawImage(
+          videoElement,
+          0,
+          0,
+          videoElement.videoWidth,
+          videoElement.videoHeight
+        );
+
+        // Get the image data from the canvas as a base64-encoded data URL
+        var imageDataUrl = canvas.toDataURL("image/jpeg");
+
+        // Remove the "data:image/jpeg;base64," prefix to get the base64-encoded data
+        var imageBase64Data = imageDataUrl.replace(
+          /^data:image\/jpeg;base64,/,
+          ""
+        );
+
+        try {
+          // Convert the base64-encoded data to a Blob object
+          var imageBlob = base64ToBlob(imageBase64Data, "image/jpeg");
+
+          // Create a FormData object and append the image Blob
+          var formData = new FormData();
+          formData.append("streamImage", imageBlob, "stream.jpg");
+
+          // Send the FormData object to the server using AJAX or fetch API
+          fetch("http://localhost:4000/get-session-result", {
+            method: "POST",
+            body: formData,
+          })
+            .then(function (response) {
+              // Handle the server response
+              console.log("Response:", response);
+            })
+            .catch(function (error) {
+              console.error("Error:", error);
+            });
+        } catch (error) {
+          console.error("Error converting to Blob:", error);
+        }
+      }
+
+      // Convert a base64-encoded string to a Blob object
+      function base64ToBlob(base64Data, contentType) {
+        var sliceSize = 1024;
+        var byteCharacters = atob(base64Data);
+        var byteArrays = [];
+
+        for (
+          var offset = 0;
+          offset < byteCharacters.length;
+          offset += sliceSize
+        ) {
+          var slice = byteCharacters.slice(offset, offset + sliceSize);
+
+          var byteNumbers = new Array(slice.length);
+          for (var i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+          }
+
+          var byteArray = new Uint8Array(byteNumbers);
+          byteArrays.push(byteArray);
+        }
+
+        return new Blob(byteArrays, { type: contentType });
+      }
+
+      // Send the video stream data to the server every 1 second (adjust the interval as needed)
+      setInterval(sendStreamDataToServer, 1000);
+    </script>
+  </body>
+</html>
